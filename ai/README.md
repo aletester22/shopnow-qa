@@ -58,7 +58,7 @@ I treated the AI as a fast executor inside a QA process that I designed and cont
 | Acting ahead of instructions | Wrote and ran tests when only analysis was agreed | Set the approval gate described above |
 | Scope narrowing | First exploration covered only the cart flow | Asked for the whole UI and for abuse scenarios |
 
-**Test quality check.** A test counts only if it fails on the unmodified app for the reason written in the ticket (compared message by message), and the existing team tests still pass. After the fixes the same tests must pass; that run is reported below once done.
+**Test quality check.** A test counts only if it fails on the unmodified app for the reason written in the ticket (compared message by message), and the existing team tests still pass.
 
 ## What I verified, and how (the AI's output was not trusted by default)
 
