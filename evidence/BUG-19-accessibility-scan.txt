@@ -1,0 +1,19 @@
+BUG-19: automated accessibility scan (axe-core 4.x, injected into the page; axe is NOT a dependency of this repo)
+Captured 2026-11-19T17:52:33.163Z
+
+Page /: 1 violation(s)
+  - select-name [critical]: Select element must have an accessible name
+      <select data-testid="category-select"><option value="">All categories</option><option value="Home">Home</option><option value="Tech">Tech</option><option value=
+
+Page /product/1: 1 violation(s)
+  - color-contrast [serious]: Elements must meet minimum color contrast ratio thresholds
+      <p class="muted">Home</p>
+
+Page /cart: 2 violation(s)
+  - empty-table-header [minor]: Table header text should not be empty
+      <th></th>
+  - label [critical]: Form elements must have labels
+      <input type="number" min="1" max="25" data-testid="cart-qty-1" value="1">
+
+Pages with no violations: /checkout, /login, /orders, /orders/1, /payments.
+Reading of the results: the category <select> and the cart quantity <input> have no accessible label; the Home category text has insufficient contrast; the empty <th> is the header of the Remove-button column.

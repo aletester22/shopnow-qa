@@ -1,0 +1,22 @@
+BUG-06: coupons stack without limit on the API (spec: only one per purchase)
+Captured 2026-11-19T17:51:58.335Z against the unmodified app (http://localhost:4321)
+
+>>> FLOCK10 + BIENVENIDA15
+Request:  POST /api/checkout  [session: Ana]
+          body: {"items":[{"productId":1,"quantity":2}],"shipping":{"name":"Ana Garcia","address":"1234 Corrientes Ave"},"card":{"number":"4242424242424242"},"coupons":["FLOCK10","BIENVENIDA15"]}
+Response: HTTP 201  (703 ms)
+          {"id":4,"userId":1,"createdAt":"2026-11-19T17:51:59.036Z","items":[{"productId":1,"name":"Ceramic mug","price":8.35,"quantity":2}],"coupons":[{"code":"FLOCK10","percent":10},{"code":"BIENVENIDA15","percent":15}],"subtotal":16.7,"discount":4.18,"total":12.52,"shipping":{"name":"Ana Garcia","address":"1234 Corrientes Ave"},"paymentId":4,"displayDate":"11/19/2026","displayTime":"14:51"}
+
+>>> FLOCK10 twice
+Request:  POST /api/checkout  [session: Ana]
+          body: {"items":[{"productId":1,"quantity":2}],"shipping":{"name":"Ana Garcia","address":"1234 Corrientes Ave"},"card":{"number":"4242424242424242"},"coupons":["FLOCK10","FLOCK10"]}
+Response: HTTP 201  (704 ms)
+          {"id":4,"userId":1,"createdAt":"2026-11-19T17:51:59.743Z","items":[{"productId":1,"name":"Ceramic mug","price":8.35,"quantity":2}],"coupons":[{"code":"FLOCK10","percent":10},{"code":"FLOCK10","percent":10}],"subtotal":16.7,"discount":3.34,"total":13.36,"shipping":{"name":"Ana Garcia","address":"1234 Corrientes Ave"},"paymentId":4,"displayDate":"11/19/2026","displayTime":"14:51"}
+
+>>> 7 x BIENVENIDA15 on the $89.90 keyboard
+Response: HTTP 201  discount=94.43  total=-4.53  (negative total = the store pays the customer)
+
+>>> 10 x BIENVENIDA15 on the $89.90 keyboard
+Response: HTTP 201  discount=134.9  total=-45  (negative total = the store pays the customer)
+
+Root cause (API): checkout loops over every coupon in the array. Root cause (UI): cart.tsx keeps the 'one coupon' rule in a useRef (couponAppliedRef), which is lost on reload even though the coupon itself is persisted.

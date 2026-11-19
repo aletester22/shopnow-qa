@@ -1,0 +1,35 @@
+BUG-16: line totals are rounded down with Math.floor, so some amounts lose one cent
+Captured 2026-11-19T17:52:02.933Z against the unmodified app (http://localhost:4321)
+
+>>> 3 x Ceramic mug ($8.35) = $25.05
+Request:  POST /api/checkout  [session: Ana]
+          body: {"items":[{"productId":1,"quantity":3}],"shipping":{"name":"Ana Garcia","address":"1234 Corrientes Ave"},"card":{"number":"4242424242424242"}}
+Response: HTTP 201  (704 ms)
+          {"id":4,"userId":1,"createdAt":"2026-11-19T17:52:03.635Z","items":[{"productId":1,"name":"Ceramic mug","price":8.35,"quantity":3}],"coupons":[],"subtotal":25.04,"discount":0,"total":25.04,"shipping":{"name":"Ana Garcia","address":"1234 Corrientes Ave"},"paymentId":4,"displayDate":"11/19/2026","displayTime":"14:52"}
+
+>>> 3 mugs + 3 T-shirts = $68.10
+Request:  POST /api/checkout  [session: Ana]
+          body: {"items":[{"productId":1,"quantity":3},{"productId":3,"quantity":3}],"shipping":{"name":"Ana Garcia","address":"1234 Corrientes Ave"},"card":{"number":"4242424242424242"}}
+Response: HTTP 201  (703 ms)
+          {"id":4,"userId":1,"createdAt":"2026-11-19T17:52:04.340Z","items":[{"productId":1,"name":"Ceramic mug","price":8.35,"quantity":3},{"productId":3,"name":"Basic T-shirt","price":14.35,"quantity":3}],"coupons":[],"subtotal":68.09,"discount":0,"total":68.09,"shipping":{"name":"Ana Garcia","address":"1234 Corrientes Ave"},"paymentId":4,"displayDate":"11/19/2026","displayTime":"14:52"}
+
+Exhaustive check of cartTotals() against exact cent arithmetic for every product x quantity 1..10:
+combinations: 80 (product x qty 1..10); wrong line totals: 5; wrong discounts: 4; wrong totals w/ coupon: 6
+line  Ceramic mug x3: expected 25.05 got 25.04
+disc  Ceramic mug x3 10%: expected 2.51 got 2.50
+total Ceramic mug x3 15%: expected 21.29 got 21.28
+line  Ceramic mug x6: expected 50.10 got 50.09
+total Ceramic mug x6 10%: expected 45.09 got 45.08
+disc  Ceramic mug x6 15%: expected 7.52 got 7.51
+line  Ceramic mug x9: expected 75.15 got 75.14
+disc  Ceramic mug x9 10%: expected 7.52 got 7.51
+total Ceramic mug x9 15%: expected 63.88 got 63.87
+line  Urban backpack x3: expected 119.70 got 119.69
+total Urban backpack x3 10%: expected 107.73 got 107.72
+disc  Urban backpack x3 15%: expected 17.96 got 17.95
+total Urban backpack x6 10%: expected 215.46 got 215.45
+total Urban backpack x6 15%: expected 203.49 got 203.48
+multi-line 3x8.35 + 3x14.35 = 68.09 (expected 68.10)
+formatMoney samples: $1,234.50 $0.00 $-16.70 $1,000,000.00
+
+Root cause: app/shared/money.ts lineTotal() uses Math.floor(price * quantity * 100) / 100; floating point makes 8.35 * 3 = 25.049999999999997, which floors to 25.04.

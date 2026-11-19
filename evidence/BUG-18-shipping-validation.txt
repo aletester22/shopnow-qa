@@ -1,0 +1,31 @@
+BUG-18: valid names and addresses are rejected with a generic message
+Captured 2026-11-19T17:52:04.943Z against the unmodified app (http://localhost:4321)
+
+>>> shipping {"name":"José Pérez","address":"Av. Corrientes 1234"}
+Request:  POST /api/checkout  [session: Ana]
+          body: {"items":[{"productId":1,"quantity":1}],"shipping":{"name":"José Pérez","address":"Av. Corrientes 1234"},"card":{"number":"4242424242424242"}}
+Response: HTTP 400  (1 ms)
+          {"error":"Please fill in the shipping details."}
+
+>>> shipping {"name":"Ana O'Brien","address":"1234 Corrientes Ave"}
+Request:  POST /api/checkout  [session: Ana]
+          body: {"items":[{"productId":1,"quantity":1}],"shipping":{"name":"Ana O'Brien","address":"1234 Corrientes Ave"},"card":{"number":"4242424242424242"}}
+Response: HTTP 400  (1 ms)
+          {"error":"Please fill in the shipping details."}
+
+>>> shipping {"name":"Ana Garcia","address":"Calle 5 & 6 (2nd floor)"}
+Request:  POST /api/checkout  [session: Ana]
+          body: {"items":[{"productId":1,"quantity":1}],"shipping":{"name":"Ana Garcia","address":"Calle 5 & 6 (2nd floor)"},"card":{"number":"4242424242424242"}}
+Response: HTTP 400  (1 ms)
+          {"error":"Please fill in the shipping details."}
+
+>>> shipping {"name":"Ana Garcia","address":"Calle 12 #3-4, Apt. 5"}
+Request:  POST /api/checkout  [session: Ana]
+          body: {"items":[{"productId":1,"quantity":1}],"shipping":{"name":"Ana Garcia","address":"Calle 12 #3-4, Apt. 5"},"card":{"number":"4242424242424242"}}
+Response: HTTP 201  (705 ms)
+          {"id":4,"userId":1,"createdAt":"2026-11-19T17:52:05.667Z","items":[{"productId":1,"name":"Ceramic mug","price":8.35,"quantity":1}],"coupons":[],"subtotal":8.35,"discount":0,"total":8.35,"shipping":{"name":"Ana Garcia","address":"Calle 12 #3-4, Apt. 5"},"paymentId":4,"displayDate":"11/19/2026","displayTime":"14:52"}
+
+>>> 600-character address
+HTTP 201  (no maximum length; see screenshot BUG-18-2-long-address-layout.png)
+
+Root cause: app/server/api.ts SAFE_TEXT = /^[A-Za-z0-9 .,#/-]+$/ only allows ASCII letters, digits and . , # / - and space, and the error message does not say which field or character failed.

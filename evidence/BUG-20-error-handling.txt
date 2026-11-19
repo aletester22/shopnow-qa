@@ -1,0 +1,14 @@
+BUG-20: errors are not JSON and unknown API routes return the web page
+Captured 2026-11-19T17:52:06.379Z against the unmodified app (http://localhost:4321)
+
+>>> Malformed JSON body
+Request:  POST /api/login  [session: anonymous]
+          body: {bad
+Response: HTTP 400  (4 ms)
+          <!DOCTYPE html> <html lang="en"> <head> <meta charset="utf-8"> <title>Error</title> </head> <body> <pre>SyntaxError: Expected property name or &#39;}&#39; in JSON at position 1 (line 1 column 2)<br> &nbsp; &nbsp;at JSON.parse (&lt;anonymous&gt;)<br> &nbsp; &nbsp;at parse (/home/claude/work/shopnow-qa/node_modules/body-parser/lib/types/json.js:92:19)<br> &nbsp; &nbsp;at /home/claude/work/shopnow-qa/node_modules/body-p ...
+
+>>> Unknown API route
+Request:  GET /api/does-not-exist  [session: anonymous]
+Response: HTTP 200  (28 ms)
+          <!doctype html> <html lang="en"> <head> <script type="module"> import RefreshRuntime from "/@react-refresh" RefreshRuntime.injectIntoGlobalHook(window) window.$RefreshReg$ = () => {} window.$RefreshSig$ = () => (type) => type window.__vite_plugin_react_preamble_installed__ = true </script> <script type="module" src="/@vite/client"></script> <meta charset="UTF-8" /> <meta name="viewport" content="width=device-width, i ...
+

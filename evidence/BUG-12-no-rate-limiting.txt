@@ -1,0 +1,12 @@
+BUG-12: no throttling on login or payments
+Captured 2026-11-19T17:52:01.873Z against the unmodified app (http://localhost:4321)
+
+>>> 300 wrong-password logins for ana@shopnow.test
+Completed in 0.3 s. Status counts: {"401":300}
+
+>>> Correct password right after the burst
+HTTP 200 (the account is never locked and no 429 is ever returned)
+
+>>> 60 payment attempts with different card numbers (half end in 0000 = declined)
+Completed in 0.8 s. Status counts: {"201":30,"402":30}  (card testing and brute force are free)
+

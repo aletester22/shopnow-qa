@@ -1,0 +1,29 @@
+BUG-21: hardening and polish findings
+Captured 2026-11-19T17:52:06.414Z against the unmodified app (http://localhost:4321)
+
+>>> Response headers of GET /api/products
+x-powered-by: Express
+
+>>> Coupon sent as a text instead of an array (silently ignored, order created without discount)
+Request:  POST /api/checkout  [session: Ana]
+          body: {"items":[{"productId":1,"quantity":2}],"shipping":{"name":"Ana Garcia","address":"1234 Corrientes Ave"},"card":{"number":"4242424242424242"},"coupons":"FLOCK10"}
+Response: HTTP 201  (750 ms)
+          {"id":4,"userId":1,"createdAt":"2026-11-19T17:52:07.158Z","items":[{"productId":1,"name":"Ceramic mug","price":8.35,"quantity":2}],"coupons":[],"subtotal":16.7,"discount":0,"total":16.7,"shipping":{"name":"Ana Garcia","address":"1234 Corrientes Ave"},"paymentId":4,"displayDate":"11/19/2026","displayTime":"14:52"}
+
+>>> Login with email sent as an array (accepted)
+Request:  POST /api/login  [session: anonymous]
+          body: {"email":["ana@shopnow.test"],"password":"Ana12345"}
+Response: HTTP 200  (7 ms)
+          {"id":1,"name":"Ana Garcia","email":"ana@shopnow.test"}
+
+>>> Coupon validation with the code sent as an array (accepted)
+Request:  POST /api/coupons/validate  [session: anonymous]
+          body: {"code":["FLOCK10"]}
+Response: HTTP 200  (8 ms)
+          {"code":"FLOCK10","percent":10}
+
+>>> Public test endpoint, no authentication
+Request:  POST /api/test/reset  [session: anonymous]
+Response: HTTP 200  (8 ms)
+          {"ok":true}
+

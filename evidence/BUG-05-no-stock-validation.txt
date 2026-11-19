@@ -1,0 +1,23 @@
+BUG-05: checkout never validates the stock (the documented 409 is never returned)
+Captured 2026-11-19T17:51:46.301Z against the unmodified app (http://localhost:4321)
+
+>>> Bluetooth headphones: 5 units, stock is 3
+Request:  POST /api/checkout  [session: Ana]
+          body: {"items":[{"productId":2,"quantity":5}],"shipping":{"name":"Ana Garcia","address":"1234 Corrientes Ave"},"card":{"number":"4242424242424242"}}
+Response: HTTP 201  (4005 ms)
+          {"id":4,"userId":1,"createdAt":"2026-11-19T17:51:50.304Z","items":[{"productId":2,"name":"Bluetooth headphones","price":49.99,"quantity":5}],"coupons":[],"subtotal":249.95,"discount":0,"total":249.95,"shipping":{"name":"Ana Garcia","address":"1234 Corrientes Ave"},"paymentId":4,"displayDate":"11/19/2026","displayTime":"14:51"}
+
+   headphones stock afterwards: -2
+
+>>> Same product in two lines (2 + 2), stock is 3
+Request:  POST /api/checkout  [session: Ana]
+          body: {"items":[{"productId":2,"quantity":2},{"productId":2,"quantity":2}],"shipping":{"name":"Ana Garcia","address":"1234 Corrientes Ave"},"card":{"number":"4242424242424242"}}
+Response: HTTP 201  (4005 ms)
+          {"id":4,"userId":1,"createdAt":"2026-11-19T17:51:54.312Z","items":[{"productId":2,"name":"Bluetooth headphones","price":49.99,"quantity":2},{"productId":2,"name":"Bluetooth headphones","price":49.99,"quantity":2}],"coupons":[],"subtotal":199.96,"discount":0,"total":199.96,"shipping":{"name":"Ana Garcia","address":"1234 Corrientes Ave"},"paymentId":4,"displayDate":"11/19/2026","displayTime":"14:51"}
+
+   headphones stock afterwards: -1
+
+>>> 4 simultaneous purchases of 1 Ergonomic chair (stock 2)
+Statuses: 201, 201, 201, 201   chair stock afterwards: -2
+
+Root cause: app/server/api.ts, checkout subtracts line.quantity from product.stock without comparing against it and without grouping repeated products.

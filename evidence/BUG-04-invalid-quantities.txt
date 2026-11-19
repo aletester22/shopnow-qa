@@ -1,0 +1,65 @@
+BUG-04: checkout accepts quantities 0, negative, fractional, text and absurdly large
+Captured 2026-11-19T17:51:38.035Z against the unmodified app (http://localhost:4321)
+
+>>> quantity = 0 on Ceramic mug (stock 25)
+Request:  POST /api/checkout  [session: Ana]
+          body: {"items":[{"productId":1,"quantity":0}],"shipping":{"name":"Ana Garcia","address":"1234 Corrientes Ave"},"card":{"number":"4242424242424242"}}
+Response: HTTP 201  (704 ms)
+          {"id":4,"userId":1,"createdAt":"2026-11-19T17:51:38.740Z","items":[{"productId":1,"name":"Ceramic mug","price":8.35,"quantity":0}],"coupons":[],"subtotal":0,"discount":0,"total":0,"shipping":{"name":"Ana Garcia","address":"1234 Corrientes Ave"},"paymentId":4,"displayDate":"11/19/2026","displayTime":"14:51"}
+
+   mug stock afterwards: 25
+
+>>> quantity = -1 on Ceramic mug (stock 25)
+Request:  POST /api/checkout  [session: Ana]
+          body: {"items":[{"productId":1,"quantity":-1}],"shipping":{"name":"Ana Garcia","address":"1234 Corrientes Ave"},"card":{"number":"4242424242424242"}}
+Response: HTTP 201  (704 ms)
+          {"id":4,"userId":1,"createdAt":"2026-11-19T17:51:39.450Z","items":[{"productId":1,"name":"Ceramic mug","price":8.35,"quantity":-1}],"coupons":[],"subtotal":-8.35,"discount":0,"total":-8.35,"shipping":{"name":"Ana Garcia","address":"1234 Corrientes Ave"},"paymentId":4,"displayDate":"11/19/2026","displayTime":"14:51"}
+
+   mug stock afterwards: 26
+
+>>> quantity = 1.5 on Ceramic mug (stock 25)
+Request:  POST /api/checkout  [session: Ana]
+          body: {"items":[{"productId":1,"quantity":1.5}],"shipping":{"name":"Ana Garcia","address":"1234 Corrientes Ave"},"card":{"number":"4242424242424242"}}
+Response: HTTP 201  (704 ms)
+          {"id":4,"userId":1,"createdAt":"2026-11-19T17:51:40.159Z","items":[{"productId":1,"name":"Ceramic mug","price":8.35,"quantity":1.5}],"coupons":[],"subtotal":12.52,"discount":0,"total":12.52,"shipping":{"name":"Ana Garcia","address":"1234 Corrientes Ave"},"paymentId":4,"displayDate":"11/19/2026","displayTime":"14:51"}
+
+   mug stock afterwards: 23.5
+
+>>> quantity = "abc" on Ceramic mug (stock 25)
+Request:  POST /api/checkout  [session: Ana]
+          body: {"items":[{"productId":1,"quantity":"abc"}],"shipping":{"name":"Ana Garcia","address":"1234 Corrientes Ave"},"card":{"number":"4242424242424242"}}
+Response: HTTP 201  (704 ms)
+          {"id":4,"userId":1,"createdAt":"2026-11-19T17:51:40.868Z","items":[{"productId":1,"name":"Ceramic mug","price":8.35,"quantity":null}],"coupons":[],"subtotal":null,"discount":0,"total":null,"shipping":{"name":"Ana Garcia","address":"1234 Corrientes Ave"},"paymentId":4,"displayDate":"11/19/2026","displayTime":"14:51"}
+
+   mug stock afterwards: null
+
+>>> quantity = 1000000000 on Ceramic mug (stock 25)
+Request:  POST /api/checkout  [session: Ana]
+          body: {"items":[{"productId":1,"quantity":1000000000}],"shipping":{"name":"Ana Garcia","address":"1234 Corrientes Ave"},"card":{"number":"4242424242424242"}}
+Response: HTTP 201  (4004 ms)
+          {"id":4,"userId":1,"createdAt":"2026-11-19T17:51:44.878Z","items":[{"productId":1,"name":"Ceramic mug","price":8.35,"quantity":1000000000}],"coupons":[],"subtotal":8350000000,"discount":0,"total":8350000000,"shipping":{"name":"Ana Garcia","address":"1234 Corrientes Ave"},"paymentId":4,"displayDate":"11/19/2026","displayTime":"14:51"}
+
+   mug stock afterwards: -999999975
+
+# Negative quantity: the store 'charges' a negative amount
+>>> Keyboard x -5
+Request:  POST /api/checkout  [session: Ana]
+          body: {"items":[{"productId":6,"quantity":-5}],"shipping":{"name":"Ana Garcia","address":"1234 Corrientes Ave"},"card":{"number":"4242424242424242"}}
+Response: HTTP 201  (704 ms)
+          {"id":4,"userId":1,"createdAt":"2026-11-19T17:51:45.587Z","items":[{"productId":6,"name":"Mechanical keyboard","price":89.9,"quantity":-5}],"coupons":[],"subtotal":-449.5,"discount":0,"total":-449.5,"shipping":{"name":"Ana Garcia","address":"1234 Corrientes Ave"},"paymentId":4,"displayDate":"11/19/2026","displayTime":"14:51"}
+
+>>> Payments
+Request:  GET /api/payments  [session: Ana]
+Response: HTTP 200  (1 ms)
+          [{"id":4,"userId":1,"orderId":4,"amount":-449.5,"cardLast4":"4242","status":"approved","createdAt":"2026-11-19T17:51:45.587Z"},{"id":2,"userId":1,"orderId":2,"amount":24.55,"cardLast4":"4242","status":"approved","createdAt":"2026-10-15T02:30:00.000Z"},{"id":1,"userId":1,"orderId":1,"amount":28.7,"cardLast4":"4242","status":"approved","createdAt":"2026-10-02T15:10:00.000Z"}]
+
+# Mixing a negative line with a real one lowers the price of the order and increases the stock of the other product
+>>> Chair x1 + Keyboard x -1
+Request:  POST /api/checkout  [session: Ana]
+          body: {"items":[{"productId":8,"quantity":1},{"productId":6,"quantity":-1}],"shipping":{"name":"Ana Garcia","address":"1234 Corrientes Ave"},"card":{"number":"4242424242424242"}}
+Response: HTTP 201  (703 ms)
+          {"id":4,"userId":1,"createdAt":"2026-11-19T17:51:46.294Z","items":[{"productId":8,"name":"Ergonomic chair","price":129,"quantity":1},{"productId":6,"name":"Mechanical keyboard","price":89.9,"quantity":-1}],"coupons":[],"subtotal":39.1,"discount":0,"total":39.1,"shipping":{"name":"Ana Garcia","address":"1234 Corrientes Ave"},"paymentId":4,"displayDate":"11/19/2026","displayTime":"14:51"}
+
+   keyboard stock afterwards: 6 (was 5)
+
+Root cause: app/server/api.ts, checkout does `const quantity = Number(item.quantity)` and never validates it.

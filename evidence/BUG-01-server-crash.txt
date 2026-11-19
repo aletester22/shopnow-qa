@@ -1,0 +1,31 @@
+BUG-01: one authenticated request makes the whole server process exit
+Captured 2026-11-19T17:52:09.737Z against the unmodified app (http://localhost:4321)
+
+Before: GET /api/products => HTTP 200
+
+>>> POST /api/checkout  [session: Ana]
+          body: {"items":[null],"shipping":{...valid...},"card":{...valid...}}
+Response: NO RESPONSE: UND_ERR_SOCKET (connection closed, the server process died)
+
+After: GET /api/products => NO RESPONSE: ECONNREFUSED   <- the whole site is down for every user until someone restarts it
+
+Server log at that moment (last lines):
+                                                                   ^
+
+TypeError: Cannot read properties of null (reading 'productId')
+    at <anonymous> (/home/claude/work/shopnow-qa/app/server/api.ts:163:68)
+    at Array.find (<anonymous>)
+    at <anonymous> (/home/claude/work/shopnow-qa/app/server/api.ts:163:35)
+    at Layer.handle [as handle_request] (/home/claude/work/shopnow-qa/node_modules/express/lib/router/layer.js:95:5)
+    at next (/home/claude/work/shopnow-qa/node_modules/express/lib/router/route.js:149:13)
+    at requireUser (/home/claude/work/shopnow-qa/app/server/api.ts:49:3)
+    at Layer.handle [as handle_request] (/home/claude/work/shopnow-qa/node_modules/express/lib/router/layer.js:95:5)
+    at next (/home/claude/work/shopnow-qa/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/home/claude/work/shopnow-qa/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/home/claude/work/shopnow-qa/node_modules/express/lib/router/layer.js:95:5)
+
+Node.js v22.23.4
+
+
+Same effect with shipping.name or shipping.address that are not text, for example {"name":5,"address":5} (TypeError: shipping.name.trim is not a function).
+Root cause: Express 4 does not catch errors thrown inside an async route handler, so the unhandled rejection terminates the Node process. api.ts reads item.productId / shipping.name.trim() without validating the types.

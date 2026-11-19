@@ -1,0 +1,22 @@
+BUG-02: any logged-in user can read other users' orders (data leak)
+Captured 2026-11-19T17:51:33.251Z against the unmodified app (http://localhost:4321)
+
+# Bruno (user 2) asks for order #1, which belongs to Ana (user 1)
+>>> Bruno reads Ana's order
+Request:  GET /api/orders/1  [session: Bruno]
+Response: HTTP 200  (48 ms)
+          {"id":1,"userId":1,"createdAt":"2026-10-02T15:10:00.000Z","items":[{"productId":3,"name":"Basic T-shirt","price":14.35,"quantity":2}],"coupons":[],"subtotal":28.7,"discount":0,"total":28.7,"shipping":{"name":"Ana Garcia","address":"1234 Corrientes Ave, Buenos Aires"},"paymentId":1,"displayDate":"10/02/2026","displayTime":"12:10"}
+
+# Ana asks for order #3, which belongs to Bruno
+>>> Ana reads Bruno's order
+Request:  GET /api/orders/3  [session: Ana]
+Response: HTTP 200  (3 ms)
+          {"id":3,"userId":2,"createdAt":"2026-10-20T13:45:00.000Z","items":[{"productId":6,"name":"Mechanical keyboard","price":89.9,"quantity":1}],"coupons":[{"code":"FLOCK10","percent":10}],"subtotal":89.9,"discount":8.99,"total":80.91,"shipping":{"name":"Bruno Diaz","address":"742 Evergreen St, Rosario"},"paymentId":3,"displayDate":"10/20/2026","displayTime":"10:45"}
+
+# Bruno's own list only has his orders, so the detail endpoint is the one missing the ownership check
+>>> Bruno lists his orders
+Request:  GET /api/orders  [session: Bruno]
+Response: HTTP 200  (3 ms)
+          [{"id":3,"userId":2,"createdAt":"2026-10-20T13:45:00.000Z","items":[{"productId":6,"name":"Mechanical keyboard","price":89.9,"quantity":1}],"coupons":[{"code":"FLOCK10","percent":10}],"subtotal":89.9,"discount":8.99,"total":80.91,"shipping":{"name":"Bruno Diaz","address":"742 Evergreen St, Rosario"},"paymentId":3,"displayDate":"10/20/2026","displayTime":"10:45"}]
+
+Root cause: app/server/api.ts, GET /orders/:id looks the order up by id only and never compares order.userId with the logged-in user.

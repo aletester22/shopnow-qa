@@ -1,0 +1,26 @@
+BUG-03: the server needs ~4 s for totals above $100, the web client gives up after 3 s
+Captured 2026-11-19T17:51:33.310Z against the unmodified app (http://localhost:4321)
+
+# Order above $100 (Ergonomic chair $129). The API answers 201, but only after ~4 s. The checkout page aborts at 3 s (Checkout.tsx PAYMENT_TIMEOUT_MS = 3000) and shows an error.
+>>> Pay for the chair
+Request:  POST /api/checkout  [session: Ana]
+          body: {"items":[{"productId":8,"quantity":1}],"shipping":{"name":"Ana Garcia","address":"1234 Corrientes Ave"},"card":{"number":"4242424242424242"}}
+Response: HTTP 201  (4007 ms)
+          {"id":4,"userId":1,"createdAt":"2026-11-19T17:51:37.314Z","items":[{"productId":8,"name":"Ergonomic chair","price":129,"quantity":1}],"coupons":[],"subtotal":129,"discount":0,"total":129,"shipping":{"name":"Ana Garcia","address":"1234 Corrientes Ave"},"paymentId":4,"displayDate":"11/19/2026","displayTime":"14:51"}
+
+# The order and the payment exist even though the user saw 'We couldn't process your payment'
+>>> List orders
+Request:  GET /api/orders  [session: Ana]
+Response: HTTP 200  (3 ms)
+          [{"id":4,"userId":1,"createdAt":"2026-11-19T17:51:37.314Z","items":[{"productId":8,"name":"Ergonomic chair","price":129,"quantity":1}],"coupons":[],"subtotal":129,"discount":0,"total":129,"shipping":{"name":"Ana Garcia","address":"1234 Corrientes Ave"},"paymentId":4,"displayDate":"11/19/2026","displayTime":"14:51"},{"id":2,"userId":1,"createdAt":"2026-10-15T02:30:00.000Z","items":[{"productId":5,"name":"Desk lamp","p ...
+
+>>> List payments
+Request:  GET /api/payments  [session: Ana]
+Response: HTTP 200  (1 ms)
+          [{"id":4,"userId":1,"orderId":4,"amount":129,"cardLast4":"4242","status":"approved","createdAt":"2026-11-19T17:51:37.314Z"},{"id":2,"userId":1,"orderId":2,"amount":24.55,"cardLast4":"4242","status":"approved","createdAt":"2026-10-15T02:30:00.000Z"},{"id":1,"userId":1,"orderId":1,"amount":28.7,"cardLast4":"4242","status":"approved","createdAt":"2026-10-02T15:10:00.000Z"}]
+
+# Nothing prevents the user (or a double click / a retry) from sending the same cart again: a second identical request creates a second order and a second charge
+>>> Two identical checkouts sent at the same time
+Response A: HTTP 201   Response B: HTTP 201
+Orders after: 4 (Ana started with 2)
+
